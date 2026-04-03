@@ -1,6 +1,6 @@
 # GoKit — Development Roadmap
 
-All 4 phases complete. Each phase ships as an independent semver tag.
+All 5 phases complete. Each phase ships as an independent semver tag.
 
 ---
 
@@ -41,6 +41,17 @@ All 4 phases complete. Each phase ships as an independent semver tag.
 
 ---
 
+## Phase 5: Microservice Support — v0.5.0 ✅
+
+| Component | Status |
+|-----------|--------|
+| `grpcclient/` — gRPC Dial factory (TLS, keepalive, timeout, interceptor chain) | ✅ |
+| `grpcclient/interceptor/` — RequestID, Logging, Retry, CircuitBreaker | ✅ |
+| `grpcclient/health.go` — Standard grpc.health.v1 health check | ✅ |
+| `discovery/` — Resolver interface, Static (dev), Consul (prod) | ✅ |
+
+---
+
 ## Dependency Map
 
 ```
@@ -48,9 +59,10 @@ v0.1.0: pgx/v5, go-sql-driver/mysql, gin, google/uuid, testify
 v0.2.0: + go-redis/v9, x/sync/singleflight, sony/gobreaker/v2
 v0.3.0: + otel SDK v1.43, prometheus/client_golang
 v0.4.0: + nats-io/nats.go v1.50
+v0.5.0: + google.golang.org/grpc, hashicorp/consul/api
 ```
 
-Each version only adds deps for its packages. `go get gokit/seed` does NOT pull Redis/OTEL/NATS.
+Each version only adds deps for its packages. `go get gokit/seed` does NOT pull Redis/OTEL/NATS/gRPC.
 
 ---
 

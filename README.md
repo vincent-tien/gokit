@@ -3,7 +3,7 @@
 Reusable Go infrastructure packages. Works with any Go backend — not framework-specific.
 
 ```
-go get github.com/vincent-tien/gokit@v0.4.0
+go get github.com/vincent-tien/gokit@v0.5.0
 ```
 
 ## Packages
@@ -135,6 +135,35 @@ inbox := outbox.NewInbox(db)
 inbox.Process(ctx, msgID, func() error { return handleOrder() })
 ```
 
+### grpcclient — gRPC client connection factory
+
+```go
+conn, _ := grpcclient.Dial("user-service:9001",
+    grpcclient.WithInsecure(),
+    grpcclient.WithTimeout(5*time.Second),
+    grpcclient.WithUnaryInterceptors(
+        interceptor.RequestID(),
+        interceptor.Logging(logger),
+        interceptor.Retry(interceptor.RetryConfig{MaxRetries: 3}),
+        interceptor.CircuitBreaker(breaker),
+    ),
+)
+defer conn.Close()
+
+err := grpcclient.CheckHealth(ctx, conn) // standard grpc.health.v1
+```
+
+**Interceptors:** `RequestID` · `Logging` · `Retry` (exponential backoff) · `CircuitBreaker`
+
+### discovery — Service discovery
+
+```go
+r := discovery.Static(map[string][]string{"user-service": {"localhost:9001"}})  // dev
+r, _ := discovery.Consul("localhost:8500")                                       // prod
+
+addrs, _ := r.Resolve(ctx, "user-service")
+```
+
 ## Environment Variables
 
 | Variable | Purpose | Default |
@@ -148,6 +177,7 @@ inbox.Process(ctx, msgID, func() error { return handleOrder() })
 - [x] **v0.2.0** — cache (memory + Redis), circuit breaker
 - [x] **v0.3.0** — OpenTelemetry tracing + Prometheus metrics
 - [x] **v0.4.0** — message broker (NATS), transactional outbox
+- [x] **v0.5.0** — gRPC client (dial, interceptors, health), service discovery (static, Consul)
 
 ## License
 

@@ -4,6 +4,26 @@ All notable changes to GoKit, following semantic versioning.
 
 ---
 
+## [0.5.0] — 2026-04-03
+
+### Added — Phase 5: Microservice Support
+
+- `grpcclient/dial.go` — `Dial()` gRPC connection factory with TLS, keepalive, timeout, interceptor chain
+- `grpcclient/health.go` — `CheckHealth()` standard grpc.health.v1 client
+- `grpcclient/interceptor/requestid.go` — Propagate X-Request-ID via gRPC metadata
+- `grpcclient/interceptor/logging.go` — Log method, duration, status code
+- `grpcclient/interceptor/retry.go` — Exponential backoff for transient errors
+- `grpcclient/interceptor/circuitbreaker.go` — Client-side circuit breaking via gokit/breaker
+- `discovery/discovery.go` — `Resolver` interface, `ErrNotFound` sentinel
+- `discovery/static.go` — Fixed address map for dev/test (defensive copy)
+- `discovery/consul.go` — Consul service discovery with healthy-only filtering
+
+### Dependencies added
+- `google.golang.org/grpc`
+- `github.com/hashicorp/consul/api` v1.33.7
+
+---
+
 ## [0.4.0] — 2026-04-03
 
 ### Added — Phase 4: Event-Driven Architecture
