@@ -1,73 +1,74 @@
 # GoKit — Project Changelog
 
-All notable changes to GoKit are recorded here, following semantic versioning.
+All notable changes to GoKit, following semantic versioning.
 
 ---
 
-## [0.1.0-dev] — 2026-04-03
+## [0.4.0] — 2026-04-03
+
+### Added — Phase 4: Event-Driven Architecture
+
+- `broker/` — Message broker abstraction: `Message`, `Publisher`, `Subscriber` interfaces
+- `broker/nats.go` — NATS JetStream implementation with message ID dedup and key propagation
+- `outbox/` — Transactional outbox: `Writer.Store()` inserts events in same DB transaction
+- `outbox/relay.go` — `Relay` polls outbox, publishes to broker, deletes on success (FOR UPDATE SKIP LOCKED)
+- `outbox/inbox.go` — `Inbox.Process()` deduplicates via INSERT ON CONFLICT
+
+### Dependencies added
+- `github.com/nats-io/nats.go` v1.50.0
+
+---
+
+## [0.3.0] — 2026-04-03
+
+### Added — Phase 3: Observability
+
+- `otel/tracer.go` — `NewTracer()` TracerProvider factory (OTLP gRPC prod, stdout dev)
+- `otel/metrics.go` — `NewMetrics()` Prometheus exporter + `NewREDMetrics()` Rate/Error/Duration helpers
+- `otel/ginmw/` — `Trace()` per-request span middleware, `Metrics()` RED recording middleware
+
+### Dependencies added
+- `go.opentelemetry.io/otel` SDK v1.43.0
+- `github.com/prometheus/client_golang` v1.23.2
+
+---
+
+## [0.2.0] — 2026-04-03
+
+### Added — Phase 2: Cache + Resilience
+
+- `cache/cache.go` — `Cache` interface (Get/Set/Delete/Exists), `ErrNotFound` sentinel
+- `cache/memory.go` — In-memory cache with TTL, copy-safe, RWMutex (dev/test)
+- `cache/redis.go` — Redis-backed cache via go-redis v9
+- `cache/cache.go` — `GetOrLoad()` cache-aside with singleflight thundering herd prevention
+- `breaker/breaker.go` — `Breaker` interface + gobreaker wrapper, functional options, `ErrOpen` sentinel
+
+### Dependencies added
+- `github.com/redis/go-redis/v9` v9.18.0
+- `golang.org/x/sync` (singleflight)
+- `github.com/sony/gobreaker/v2` v2.4.0
+
+---
+
+## [0.1.0] — 2026-04-03
 
 ### Added — Phase 1: Core Infrastructure
 
-**`seed/` package — Database Seeder Framework**
-- `Seed` type: named, idempotent data operations
-- `Runner` type: sequential seed executor with dry-run and error handling
-- Adapters: `StdDB`, `StdTx` (sql.DB/sql.Tx), `PgxPool`, `PgxTx` (pgx native)
-- Options: `WithLogger()`, `WithDryRun()`, `WithContinueOnError()`
-
-**`testutil/` package — Test Infrastructure Helpers**
-- Dialect detection: `Dialect` enum (PostgreSQL, MySQL), `DialectFromEnv()`
-- Database connections: `DB()` (universal *sql.DB), `PgPool()` (pgx-specific)
-- Table truncation: `Truncate()` (dialect-aware), `TruncatePgPool()`
-- SQL execution: `ExecSQL()`, `ExecSQLPgPool()`
-- Fixtures: `FixedTime`, `FixedTimeAt()`, `UUID()`, `RandomUUID()`
-- Test data builders: `Row`, `Insert()`, `Values()` with fluent API
-- JSON assertions: `JSONContains()`, `JSONEqual()`
-
-**`testutil/gintest/` package — Gin-Specific Test Helpers**
-- Request builders: `NewRequest()` (GET, POST, PUT, DELETE)
-- Response recording: `Record()` with status, headers, body access
+- `seed/seed.go` — `DB` interface, `Seed`, `Runner`, `Result`, `SeedError` (with Unwrap)
+- `seed/adapters.go` — `StdDB`, `StdTx`, `PgxPool`, `PgxTx` adapters
+- `testutil/` — Dialect detection, DB/PgPool connections, Truncate, ExecSQL, ExecPgPool
+- `testutil/fixture.go` — `FixedTime`, `FixedTimeAt()`, `UUID(n)`, `RandomUUID()`
+- `testutil/builder.go` — `InsertRow` fluent builder, `InsertRows` batch
+- `testutil/assert.go` — `JSONContains`, `JSONEqual`
+- `testutil/gintest/` — `NewRequest`, `Record` for Gin handler testing
 
 ### Dependencies
-- `github.com/jackc/pgx/v5` v5.7.2 — PostgreSQL driver (native)
-- `github.com/go-sql-driver/mysql` v1.8.1 — MySQL/MariaDB driver
-- `github.com/gin-gonic/gin` v1.10.0 — Web framework (testutil/gintest only)
-- `github.com/google/uuid` v1.6.0 — UUID generation
-- `github.com/stretchr/testify` v1.9.0 — Test assertions
+- `github.com/jackc/pgx/v5`, `github.com/go-sql-driver/mysql`, `github.com/gin-gonic/gin`
+- `github.com/google/uuid`, `github.com/stretchr/testify`
 
 ### Infrastructure
-- Go 1.26+ (toolchain go1.26.1)
-- Module: `github.com/vincent-tien/gokit`
-- License: MIT
-- Build: Makefile with test, lint, fmt, verify targets
-- Linting: golangci-lint configuration
-
-### Documentation
-- Phase 1 (core seed + testutil) shipped as foundation for GoFrame integration
+- Go 1.26, module `github.com/vincent-tien/gokit`, MIT license
 
 ---
 
-## Upcoming Releases
-
-**[0.2.0]** — Phase 2: Cache + Resilience
-- `cache/` — Cache abstraction (Memory, Redis, Singleflight)
-- `breaker/` — Circuit breaker integration
-
-**[0.3.0]** — Phase 3: Observability
-- `otel/` — OpenTelemetry setup (tracer, metrics)
-- `otel/ginmw/` — Gin tracing middleware
-
-**[0.4.0]** — Phase 4: Event-Driven Architecture
-- `outbox/` — Transactional outbox pattern
-- `broker/` — Message broker abstraction (NATS)
-
----
-
-## Release Policy
-
-- **Stable:** v0.x.0 for core infrastructure
-- **Experimental:** v0.x.0-alpha, v0.x.0-beta before stability
-- **Compatibility:** Semantic versioning; v0.x breaking changes documented
-
----
-
-**Generated:** 2026-04-03
+**Last updated:** 2026-04-03
