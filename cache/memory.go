@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"bytes"
 	"context"
 	"sync"
 	"time"
@@ -28,27 +29,23 @@ func NewMemory() *Memory {
 }
 
 func (m *Memory) Get(_ context.Context, key string) ([]byte, error) {
-	m.mu.RLock()
+	m.mu.Lock()
 	entry, ok := m.entries[key]
-	m.mu.RUnlock()
-
-	if !ok || entry.expired() {
-		if ok && entry.expired() {
-			m.Delete(context.Background(), key)
-		}
+	if !ok {
+		m.mu.Unlock()
 		return nil, ErrNotFound
 	}
-	// Return a copy to prevent mutation of cached data.
-	cp := make([]byte, len(entry.data))
-	copy(cp, entry.data)
-	return cp, nil
+	if entry.expired() {
+		delete(m.entries, key)
+		m.mu.Unlock()
+		return nil, ErrNotFound
+	}
+	m.mu.Unlock()
+	return bytes.Clone(entry.data), nil
 }
 
 func (m *Memory) Set(_ context.Context, key string, value []byte, ttl time.Duration) error {
-	cp := make([]byte, len(value))
-	copy(cp, value)
-
-	entry := memEntry{data: cp}
+	entry := memEntry{data: bytes.Clone(value)}
 	if ttl > 0 {
 		entry.expiresAt = time.Now().Add(ttl)
 	}

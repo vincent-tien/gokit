@@ -3,11 +3,15 @@ package breaker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/sony/gobreaker/v2"
 )
+
+// ErrOpen is returned when the circuit breaker is open and rejecting calls.
+var ErrOpen = errors.New("breaker: circuit open")
 
 // State represents the circuit breaker state.
 type State string
@@ -89,10 +93,18 @@ func (b *breaker) Execute(ctx context.Context, fn func() error) error {
 		}
 		return nil, fn()
 	})
-	if err != nil {
-		return fmt.Errorf("breaker: %w", err)
+	if err == nil {
+		return nil
 	}
-	return nil
+	// Return context errors unwrapped — the breaker didn't cause the cancellation.
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	// Fast path for open-circuit rejection — avoid fmt.Errorf allocation.
+	if errors.Is(err, gobreaker.ErrOpenState) {
+		return ErrOpen
+	}
+	return fmt.Errorf("breaker: %w", err)
 }
 
 func (b *breaker) State() State {
