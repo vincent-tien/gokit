@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/vincent-tien/gokit/broker"
@@ -15,6 +16,7 @@ type Relay struct {
 	publisher broker.Publisher
 	interval  time.Duration
 	batchSize int
+	log       *slog.Logger
 }
 
 // RelayOption configures a Relay.
@@ -26,6 +28,9 @@ func WithInterval(d time.Duration) RelayOption { return func(r *Relay) { r.inter
 // WithBatchSize sets how many events to process per poll. Default: 100.
 func WithBatchSize(n int) RelayOption { return func(r *Relay) { r.batchSize = n } }
 
+// WithLogger sets a structured logger for the relay. Default: slog.Default().
+func WithLogger(log *slog.Logger) RelayOption { return func(r *Relay) { r.log = log } }
+
 // NewRelay creates a Relay that polls outbox and publishes to the given Publisher.
 func NewRelay(db *sql.DB, pub broker.Publisher, opts ...RelayOption) *Relay {
 	r := &Relay{
@@ -33,6 +38,7 @@ func NewRelay(db *sql.DB, pub broker.Publisher, opts ...RelayOption) *Relay {
 		publisher: pub,
 		interval:  time.Second,
 		batchSize: 100,
+		log:       slog.Default(),
 	}
 	for _, opt := range opts {
 		opt(r)
@@ -52,8 +58,7 @@ func (r *Relay) Start(ctx context.Context) error {
 			return ctx.Err()
 		case <-ticker.C:
 			if err := r.poll(ctx); err != nil {
-				// Log and continue — don't crash the relay on transient errors.
-				continue
+				r.log.Error("outbox relay poll failed", "error", err)
 			}
 		}
 	}
@@ -75,8 +80,8 @@ func (r *Relay) poll(ctx context.Context) error {
 	}
 	defer rows.Close()
 
-	var events []broker.Message
-	var ids []any
+	events := make([]broker.Message, 0, r.batchSize)
+	ids := make([]any, 0, r.batchSize)
 	for rows.Next() {
 		var m broker.Message
 		if err := rows.Scan(&m.ID, &m.Topic, &m.Key, &m.Payload); err != nil {
@@ -97,7 +102,6 @@ func (r *Relay) poll(ctx context.Context) error {
 		return fmt.Errorf("outbox relay: publish: %w", err)
 	}
 
-	// Delete published events one by one (portable SQL, works with ? placeholders).
 	for _, id := range ids {
 		if _, err := tx.ExecContext(ctx, "DELETE FROM outbox WHERE id = ?", id); err != nil {
 			return fmt.Errorf("outbox relay: delete: %w", err)

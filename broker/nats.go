@@ -3,6 +3,7 @@ package broker
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -23,16 +24,18 @@ func (p *NATSPublisher) Publish(ctx context.Context, msgs ...Message) error {
 		nm := &nats.Msg{
 			Subject: msg.Topic,
 			Data:    msg.Payload,
-			Header:  nats.Header{},
 		}
-		if msg.ID != "" {
-			nm.Header.Set("Nats-Msg-Id", msg.ID)
-		}
-		if msg.Key != "" {
-			nm.Header.Set("X-Key", msg.Key)
-		}
-		for k, v := range msg.Headers {
-			nm.Header.Set(k, v)
+		if msg.ID != "" || msg.Key != "" || len(msg.Headers) > 0 {
+			nm.Header = nats.Header{}
+			if msg.ID != "" {
+				nm.Header.Set("Nats-Msg-Id", msg.ID)
+			}
+			if msg.Key != "" {
+				nm.Header.Set("X-Key", msg.Key)
+			}
+			for k, v := range msg.Headers {
+				nm.Header.Set(k, v)
+			}
 		}
 
 		if _, err := p.js.PublishMsg(ctx, nm); err != nil {
@@ -47,7 +50,8 @@ func (p *NATSPublisher) Close() error { return nil }
 
 // NATSSubscriber subscribes to NATS JetStream subjects.
 type NATSSubscriber struct {
-	js   jetstream.JetStream
+	js  jetstream.JetStream
+	mu  sync.Mutex
 	cons []jetstream.ConsumeContext
 }
 
@@ -57,8 +61,6 @@ func NewNATSSubscriber(js jetstream.JetStream) *NATSSubscriber {
 }
 
 // Subscribe starts consuming messages from the given topic (subject).
-// The consumer name is derived from the topic. Messages are ack'd on nil handler return,
-// nak'd on error.
 func (s *NATSSubscriber) Subscribe(ctx context.Context, topic string, handler Handler) error {
 	consumer, err := s.js.OrderedConsumer(ctx, topic, jetstream.OrderedConsumerConfig{})
 	if err != nil {
@@ -69,32 +71,37 @@ func (s *NATSSubscriber) Subscribe(ctx context.Context, topic string, handler Ha
 		msg := Message{
 			Topic:   jm.Subject(),
 			Payload: jm.Data(),
-			Headers: make(map[string]string),
 		}
-		for k := range jm.Headers() {
-			msg.Headers[k] = jm.Headers().Get(k)
+		if h := jm.Headers(); h != nil && len(h) > 0 {
+			msg.Headers = make(map[string]string, len(h))
+			for k := range h {
+				msg.Headers[k] = h.Get(k)
+			}
+			msg.ID = msg.Headers["Nats-Msg-Id"]
+			msg.Key = msg.Headers["X-Key"]
 		}
-		msg.ID = msg.Headers["Nats-Msg-Id"]
-		msg.Key = msg.Headers["X-Key"]
 
-		if err := handler(ctx, msg); err != nil {
-			// Ordered consumers don't support Nak; log and continue.
-			return
-		}
+		_ = handler(ctx, msg)
 	})
 	if err != nil {
 		return fmt.Errorf("broker: consume %q: %w", topic, err)
 	}
 
+	s.mu.Lock()
 	s.cons = append(s.cons, cc)
+	s.mu.Unlock()
 	return nil
 }
 
 // Close stops all active consumer contexts.
 func (s *NATSSubscriber) Close() error {
-	for _, cc := range s.cons {
+	s.mu.Lock()
+	cons := s.cons
+	s.cons = nil
+	s.mu.Unlock()
+
+	for _, cc := range cons {
 		cc.Stop()
 	}
-	s.cons = nil
 	return nil
 }
