@@ -1,0 +1,13 @@
+.claude
+.idea
+specs
+.wmxignore
+bin/
+tmp/
+coverage.out
+coverage.html
+.env
+.env.*
+*.exe
+*.test
+*.prof
