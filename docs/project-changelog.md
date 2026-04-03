@@ -36,7 +36,7 @@ All notable changes to GoKit are recorded here, following semantic versioning.
 
 ### Infrastructure
 - Go 1.26+ (toolchain go1.26.1)
-- Module: `github.com/your-org/gokit`
+- Module: `github.com/vincent-tien/gokit`
 - License: MIT
 - Build: Makefile with test, lint, fmt, verify targets
 - Linting: golangci-lint configuration

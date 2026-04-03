@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-GoKit is a reusable Go infrastructure library (`github.com/your-org/gokit`). It provides shared, framework-agnostic packages for any Go backend. GoFrame imports GoKit — GoKit **never** imports GoFrame.
+GoKit is a reusable Go infrastructure library (`github.com/vincent-tien/gokit`). It provides shared, framework-agnostic packages for any Go backend. GoFrame imports GoKit — GoKit **never** imports GoFrame.
 
 Go 1.26 (toolchain go1.26.1). MIT license.
 

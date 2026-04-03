@@ -3,7 +3,7 @@
 Reusable Go infrastructure packages. Works with any Go backend — not framework-specific.
 
 ```
-go get github.com/your-org/gokit@v0.1.0
+go get github.com/vincent-tien/gokit@v0.1.0
 ```
 
 ## Packages

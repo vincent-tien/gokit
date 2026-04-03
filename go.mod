@@ -1,4 +1,4 @@
-module github.com/your-org/gokit
+module github.com/vincent-tien/gokit
 
 go 1.26
 
