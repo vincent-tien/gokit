@@ -108,33 +108,6 @@ engine.Use(ginmw.Trace("my-api"))
 engine.Use(ginmw.Metrics(red))
 ```
 
-### broker — Message broker abstraction
-
-```go
-pub := broker.NewNATSPublisher(js)
-pub.Publish(ctx, broker.Message{Topic: "orders.created", Key: "order-123", Payload: data})
-
-sub := broker.NewNATSSubscriber(js)
-sub.Subscribe(ctx, "orders", func(ctx context.Context, msg broker.Message) error {
-    return processOrder(ctx, msg.Payload)
-})
-```
-
-### outbox — Transactional outbox pattern
-
-```go
-writer := outbox.NewWriter(db)
-tx, _ := db.BeginTx(ctx, nil)
-writer.Store(ctx, tx, outbox.Event{Topic: "orders.created", Key: orderID, Payload: data})
-tx.Commit()
-
-relay := outbox.NewRelay(db, publisher, outbox.WithInterval(time.Second))
-go relay.Start(ctx)
-
-inbox := outbox.NewInbox(db)
-inbox.Process(ctx, msgID, func() error { return handleOrder() })
-```
-
 ### grpcclient — gRPC client connection factory
 
 ```go
@@ -176,8 +149,21 @@ addrs, _ := r.Resolve(ctx, "user-service")
 - [x] **v0.1.0** — seed, testutil, testutil/gintest
 - [x] **v0.2.0** — cache (memory + Redis), circuit breaker
 - [x] **v0.3.0** — OpenTelemetry tracing + Prometheus metrics
-- [x] **v0.4.0** — message broker (NATS), transactional outbox
+- [x] **v0.4.0** — message broker (NATS), transactional outbox (now in `eda/` submodule)
 - [x] **v0.5.0** — gRPC client (dial, interceptors, health), service discovery (static, Consul)
+
+## Event-Driven Architecture (eda submodule)
+
+Broker, outbox, inbox, and DLQ live in `eda/` (separate Go module).
+Projects opt-in:
+
+    go get github.com/vincent-tien/gokit/eda
+
+Core gokit stays lightweight — no NATS / Kafka / RabbitMQ / SQS deps unless eda is imported.
+
+Pre-eda: `import gokit/broker`. Post-eda: `import gokit/eda/broker`.
+
+See `eda/README.md` for usage.
 
 ## License
 
