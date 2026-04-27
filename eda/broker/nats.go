@@ -61,8 +61,17 @@ func NewNATSSubscriber(js jetstream.JetStream) *NATSSubscriber {
 }
 
 // Subscribe starts consuming messages from the given topic (subject).
+//
+// LIMITATION: SubscribeOption arguments (group, concurrency, retries, ack-timeout)
+// are currently IGNORED for the NATS backend. JetStream consumer-group /
+// pull-subscribe option mapping is tracked under task E15. Callers that depend
+// on these options should use the in-memory backend or wait for E15.
+//
+// Until E15 lands, all NATS subscriptions behave as ordered consumers with
+// best-effort delivery. Multiple Subscribe calls on the same subject each
+// create independent consumers.
 func (s *NATSSubscriber) Subscribe(ctx context.Context, topic string, handler Handler, opts ...SubscribeOption) error {
-	_ = opts // TODO E15: map to jetstream.OrderedConsumer/PullSubscribe options
+	_ = opts // ignored until E15; see godoc above
 	consumer, err := s.js.OrderedConsumer(ctx, topic, jetstream.OrderedConsumerConfig{})
 	if err != nil {
 		return fmt.Errorf("broker: create consumer for %q: %w", topic, err)
