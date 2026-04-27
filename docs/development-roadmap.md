@@ -52,6 +52,38 @@ All 5 phases complete. Each phase ships as an independent semver tag.
 
 ---
 
+## Phase 6: EDA Submodule Split — gokit v0.6.0 + eda/v0.1.0 ✅
+
+Broker, outbox, inbox, and DLQ moved into a separate Go module at `eda/` so projects opt-in to messaging deps. Core stays lightweight — `nats-io/nats.go` is no longer pulled by `gokit` itself.
+
+| Component | Status |
+|-----------|--------|
+| `eda/` — separate Go module (`github.com/vincent-tien/gokit/eda`) | ✅ |
+| `eda/broker/` — registry-pattern Pub/Sub (memory + nats backends) | ✅ |
+| `eda/event/` — EventMeta + Envelope + InProcessDispatcher + OutboxDispatcher (TxFromContext interface) | ✅ |
+| `eda/outbox/` — Writer + Inbox + adaptive Relay (10ms..1s) + DLQ with separate retry table | ✅ |
+| `eda/migration/` — Postgres + MySQL DDL constants | ✅ |
+| `eda/edatest/` — RecordingBroker + AssertEventPublished / AssertInboxProcessed + fixtures | ✅ |
+| `broker/` + `outbox/` removed from gokit core | ✅ |
+
+---
+
+## Phase 7: Registry-Pattern Factories — gokit v0.7.0 + eda/v0.2.0 ✅
+
+Audit-driven completion of the registry-pattern story across `cache/` and `discovery/`, plus an event-name catalog in the eda submodule.
+
+| Component | Status |
+|-----------|--------|
+| `cache/factory.go` — registry pattern; memory + redis self-register via init() | ✅ |
+| `discovery/factory.go` — registry pattern; static + consul self-register via init() | ✅ |
+| `eda/outbox/registry.go` — AsyncAPI catalog (name + version + source) for event-schema export | ✅ |
+| `eda/broker/nats.go` — public godoc warning that SubscribeOption args ignored until E15 | ✅ |
+| `eda/README.md` (eda/v0.2.1) — submodule README | ✅ |
+
+Existing direct constructors (`NewMemory`, `NewRedis`, `Static`, `Consul`) unchanged for backward compatibility.
+
+---
+
 ## Dependency Map
 
 ```
@@ -60,10 +92,12 @@ v0.2.0: + go-redis/v9, x/sync/singleflight, sony/gobreaker/v2
 v0.3.0: + otel SDK v1.43, prometheus/client_golang
 v0.4.0: + nats-io/nats.go v1.50
 v0.5.0: + google.golang.org/grpc, hashicorp/consul/api
+v0.6.0: − nats-io/nats.go v1.50 (moved to eda/go.mod)
+v0.7.0: no dep changes
 ```
 
 Each version only adds deps for its packages. `go get gokit/seed` does NOT pull Redis/OTEL/NATS/gRPC.
 
 ---
 
-**Completed:** 2026-04-03
+**Completed:** 2026-04-27

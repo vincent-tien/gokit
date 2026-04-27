@@ -3,7 +3,7 @@
 Event-Driven Architecture primitives for Go backends — broker, transactional outbox, inbox, DLQ, and event registry. Separate Go module: `gokit` core stays lightweight (no NATS / Kafka deps unless you import `gokit/eda`).
 
 ```
-go get github.com/vincent-tien/gokit/eda@v0.2.0
+go get github.com/vincent-tien/gokit/eda@v0.2.1
 ```
 
 Companion guide for goframe wiring: `goframe/docs/guides/09-add-event-driven-messaging.md`.
