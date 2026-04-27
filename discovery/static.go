@@ -2,6 +2,12 @@ package discovery
 
 import "context"
 
+func init() { Register("static", newStaticFactory) }
+
+func newStaticFactory(cfg Config) (Resolver, error) {
+	return Static(cfg.Addresses), nil
+}
+
 type staticResolver struct {
 	addresses map[string][]string
 }

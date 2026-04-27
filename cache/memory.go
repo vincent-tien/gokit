@@ -73,3 +73,7 @@ func (m *Memory) Exists(_ context.Context, key string) (bool, error) {
 	}
 	return true, nil
 }
+
+func newMemoryFactory(_ Config) (Cache, error) { return NewMemory(), nil }
+
+func init() { Register("memory", newMemoryFactory) }

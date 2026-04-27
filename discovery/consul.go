@@ -7,6 +7,14 @@ import (
 	"github.com/hashicorp/consul/api"
 )
 
+func init() { Register("consul", newConsulFactory) }
+
+// newConsulFactory adapts Config to Consul(addr). Options pass-through is intentionally
+// omitted — for advanced ConsulOption use Consul(addr, opts...) directly.
+func newConsulFactory(cfg Config) (Resolver, error) {
+	return Consul(cfg.Addr)
+}
+
 type consulResolver struct {
 	client      *api.Client
 	onlyHealthy bool

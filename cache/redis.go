@@ -45,3 +45,10 @@ func (r *Redis) Exists(ctx context.Context, key string) (bool, error) {
 	}
 	return n > 0, nil
 }
+
+func newRedisFactory(cfg Config) (Cache, error) {
+	client := redis.NewClient(&redis.Options{Addr: cfg.Addr})
+	return NewRedis(client), nil
+}
+
+func init() { Register("redis", newRedisFactory) }
