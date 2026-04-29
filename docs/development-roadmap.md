@@ -84,6 +84,27 @@ Existing direct constructors (`NewMemory`, `NewRedis`, `Static`, `Consul`) uncha
 
 ---
 
+## Phase 8: RabbitMQ Backend — eda/v0.3.0 ✅
+
+Production-ready AMQP 0.9.1 backend for the broker registry. Spec task E19 from the EDA implementation plan. Default queue type is quorum (replicated, durable, x-delivery-count tracking) — matches the resilience baseline of the NATS JetStream backend.
+
+| Component | Status |
+|-----------|--------|
+| `eda/broker/rabbitmq.go` — factory, init() registration, options parser, header/delivery codecs, retryable-error classifier, panic-safe handler | ✅ |
+| `eda/broker/rabbitmq_publisher.go` — mutex-guarded channel, publisher confirms, persistent delivery, exchange-declare cache, reconnect-with-backoff (5 attempts, linear) | ✅ |
+| `eda/broker/rabbitmq_subscriber.go` — per-Subscribe channel, quorum queue, QoS=Concurrency, worker pool, manual ack/nack/reject, native-DLX option, drain-on-Close (30s) | ✅ |
+| `eda/broker/rabbitmq_test.go` — 54 unit tests (interface compliance, options, codecs, validation, registry routing) | ✅ |
+| `eda/broker/rabbitmq_integration_test.go` — 7 e2e tests (`//go:build integration`): pub/sub, round-robin, fan-out, nack-requeue, concurrency, headers, graceful close | ✅ |
+| `eda/docker-compose.test.yml` — `rabbitmq:3.13-management-alpine` with healthcheck | ✅ |
+| `Makefile` — `test-rabbitmq{,-up,-down}` targets | ✅ |
+| `eda/README.md` — RabbitMQ entry + Config.Options table | ✅ |
+
+**Config.Options:** `vhost`, `heartbeat`, `exchange_type`, `binding_key`, `prefetch_global`, `native_dlq`, `dlq_prefix`, `durable`. Defaults match production conventions (topic exchange, # binding, durable=true, native_dlq=false — favour app-level inbox/dlq for portability).
+
+Two AMQP connections per `broker.New(rabbitmq)` call — publisher + subscriber isolated so a stuck consumer cannot stall publishes.
+
+---
+
 ## Dependency Map
 
 ```
@@ -94,6 +115,7 @@ v0.4.0: + nats-io/nats.go v1.50
 v0.5.0: + google.golang.org/grpc, hashicorp/consul/api
 v0.6.0: − nats-io/nats.go v1.50 (moved to eda/go.mod)
 v0.7.0: no dep changes
+eda/v0.3.0: + github.com/rabbitmq/amqp091-go v1.10.0 (eda submodule only)
 ```
 
 Each version only adds deps for its packages. `go get gokit/seed` does NOT pull Redis/OTEL/NATS/gRPC.

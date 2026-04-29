@@ -3,7 +3,7 @@
 Event-Driven Architecture primitives for Go backends — broker, transactional outbox, inbox, DLQ, and event registry. Separate Go module: `gokit` core stays lightweight (no NATS / Kafka deps unless you import `gokit/eda`).
 
 ```
-go get github.com/vincent-tien/gokit/eda@v0.2.1
+go get github.com/vincent-tien/gokit/eda@v0.3.0
 ```
 
 Companion guide for goframe wiring: `goframe/docs/guides/09-add-event-driven-messaging.md`.
@@ -12,7 +12,7 @@ Companion guide for goframe wiring: `goframe/docs/guides/09-add-event-driven-mes
 
 ### broker — Pub/Sub abstraction with registry-pattern factory
 
-Pluggable backends via `Register(name, factory)`. Memory backend self-registers for tests. NATS JetStream included. Add Kafka / RabbitMQ by registering your own factory in an `init()`.
+Pluggable backends via `Register(name, factory)`. Memory backend self-registers for tests. NATS JetStream and RabbitMQ included. Add Kafka by registering your own factory in an `init()`.
 
 ```go
 pub, sub, err := broker.New(broker.Config{
@@ -22,6 +22,8 @@ pub, sub, err := broker.New(broker.Config{
 
 // or for nats:
 //   broker.New(broker.Config{Backend: "nats", Addr: "nats://localhost:4222"})
+// or for rabbitmq:
+//   broker.New(broker.Config{Backend: "rabbitmq", Addr: "amqp://guest:guest@localhost:5672/"})
 
 err := pub.Publish(ctx, broker.Message{Topic: "order.created", Payload: data})
 err := sub.Subscribe(ctx, "order.created", handler,
@@ -30,9 +32,28 @@ err := sub.Subscribe(ctx, "order.created", handler,
 )
 ```
 
-**Backends:** `memory` · `nats` *(SubscribeOption args ignored until E15 lands — see godoc)*
+**Backends:** `memory` · `nats` *(SubscribeOption args ignored until E15 lands — see godoc)* · `rabbitmq` *(quorum queues, manual ack, publisher confirms, auto-reconnect)*
 
 **SubscribeOptions:** `WithGroup(name)` · `WithConcurrency(n)` · `WithMaxRetries(n)` · `WithAckTimeout(d)`
+
+#### RabbitMQ — Config.Options
+
+| Key | Type | Default | Purpose |
+|-----|------|---------|---------|
+| `vhost` | string | `""` | AMQP virtual host |
+| `heartbeat` | int seconds / `time.Duration` / `"30s"` | `10s` | Connection keep-alive |
+| `exchange_type` | string | `"topic"` | `topic` / `direct` / `fanout` / `headers` |
+| `binding_key` | string | `"#"` | Pattern bound to queue |
+| `prefetch_global` | bool | `false` | QoS global flag |
+| `native_dlq` | bool | `false` | Wire `x-dead-letter-exchange` (otherwise rely on inbox/dlq) |
+| `dlq_prefix` | string | `"dlq."` | Prefix for DLX name when `native_dlq=true` |
+| `durable` | bool | `true` | Exchange / queue durability |
+
+**Topology per Subscribe:** declares the topic exchange · creates a quorum queue named `cfg.Group` (durable + replicated, with `x-delivery-count` for retry tracking) · binds queue to exchange via `binding_key` · sets QoS prefetch = `cfg.Concurrency` · spawns `cfg.Concurrency` workers consuming with manual ack. Empty `Group` falls back to a server-named exclusive auto-delete classic queue.
+
+**Failure semantics:** handler error with `delivery_count < MaxRetries` → `nack(requeue=true)` (broker redelivers). On `MaxRetries` reached → `reject(requeue=false)` (drops or routes to DLX when `native_dlq=true`). Handler panics are recovered and treated as errors.
+
+**Run integration tests:** `make test-rabbitmq` (requires Docker; spins up `rabbitmq:3.13-management-alpine`).
 
 ### event — Event metadata, envelope, dispatcher
 

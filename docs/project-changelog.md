@@ -4,6 +4,33 @@ All notable changes to GoKit, following semantic versioning.
 
 ---
 
+## [eda/0.3.0] — 2026-04-29
+
+### Added — Phase 8: RabbitMQ broker backend (E19)
+
+- `eda/broker/rabbitmq.go` — factory + `init()` self-registration as `"rabbitmq"`, options parser, header/delivery codecs, retryable-error classifier, panic-safe handler invoker
+- `eda/broker/rabbitmq_publisher.go` — `rabbitPublisher` with mutex-guarded channel, publisher confirms, persistent delivery, exchange-declare cache, reconnect-with-backoff (5 attempts, 1–5s linear)
+- `eda/broker/rabbitmq_subscriber.go` — `rabbitSubscriber` with per-Subscribe AMQP channel, quorum queues by default, QoS prefetch = `cfg.Concurrency`, worker pool, manual ack / nack-requeue / reject(DLX), drain-on-Close (30s timeout)
+- `eda/broker/rabbitmq_test.go` — 54 unit tests covering interface compliance, options parsing (heartbeat int/int64/float/Duration/string), header roundtrip across 16 AMQP scalar types, delivery-count fallback, retryable-error classification, validation paths
+- `eda/broker/rabbitmq_integration_test.go` — 7 e2e tests gated by `//go:build integration`: PublishSubscribe, ConsumerGroup round-robin, FanoutAcrossGroups, NackRequeue, ConcurrencyDeliversInParallel, HeadersRoundtrip, CloseGracefulDrain
+- `eda/docker-compose.test.yml` — `rabbitmq:3.13-management-alpine` with `rabbitmq-diagnostics` healthcheck
+- `Makefile` — `test-rabbitmq` (compose up → integration tests → compose down), `test-rabbitmq-up`, `test-rabbitmq-down`
+- `eda/README.md` — RabbitMQ added to backends list with Config.Options table and topology semantics
+
+### Config.Options recognised
+`vhost`, `heartbeat` (int seconds / `time.Duration` / duration string), `exchange_type` (`topic`/`direct`/`fanout`/`headers`), `binding_key`, `prefetch_global`, `native_dlq`, `dlq_prefix`, `durable`
+
+### Dependencies added (eda submodule only)
+- `github.com/rabbitmq/amqp091-go` v1.10.0
+
+### Design notes
+- Publisher and Subscriber use **separate** AMQP connections — stuck consumer cannot stall publishes
+- Default failure semantics: `delivery_count < MaxRetries` → `nack(requeue=true)`; `delivery_count >= MaxRetries` → `reject(requeue=false)` → drop or DLX
+- Native RabbitMQ DLX wiring is opt-in (`native_dlq=true`); app-level `inbox/dlq` recommended for cross-broker portability
+- Empty `WithGroup` → server-named exclusive auto-delete classic queue; named group → durable quorum queue
+
+---
+
 ## [0.5.0] — 2026-04-03
 
 ### Added — Phase 5: Microservice Support
@@ -91,4 +118,4 @@ All notable changes to GoKit, following semantic versioning.
 
 ---
 
-**Last updated:** 2026-04-03
+**Last updated:** 2026-04-29
